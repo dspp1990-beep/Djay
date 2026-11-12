@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import com.example.util.SyncManager
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -299,6 +301,9 @@ fun FieldMapScreen(viewModel: IrrigationViewModel) {
 
     val fieldLogs by viewModel.fieldLogs.collectAsState()
     val allValves by viewModel.allValves.collectAsState()
+    val syncStatus by viewModel.syncStatus.collectAsState()
+    val unsynced by viewModel.unsyncedCount.collectAsState()
+    var showSyncSettings by remember { mutableStateOf(false) }
 
     var operatorName by remember { mutableStateOf(prefs.getString("operator", "") ?: "") }
     var search by remember { mutableStateOf("") }
@@ -445,6 +450,8 @@ fun FieldMapScreen(viewModel: IrrigationViewModel) {
                     IconButton(onClick = { doSearch() }) { Icon(Icons.Default.Search, contentDescription = "Search") }
                 }
             }
+            Spacer(Modifier.height(6.dp))
+            SyncChip(syncStatus, unsynced) { showSyncSettings = true }
             message?.let {
                 Spacer(Modifier.height(6.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
@@ -525,7 +532,11 @@ fun FieldMapScreen(viewModel: IrrigationViewModel) {
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = operatorName,
-                    onValueChange = { operatorName = it; prefs.edit().putString("operator", it).apply() },
+                    onValueChange = {
+                        operatorName = it
+                        prefs.edit().putString("operator", it).apply()
+                        context.getSharedPreferences("sync", Context.MODE_PRIVATE).edit().putString("operator", it).apply()
+                    },
                     label = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
@@ -565,6 +576,42 @@ fun FieldMapScreen(viewModel: IrrigationViewModel) {
         }
     }
 
+    // ---- sync settings ----
+    if (showSyncSettings) {
+        var url by remember { mutableStateOf(viewModel.syncManager.serverUrl()) }
+        var key by remember { mutableStateOf(viewModel.syncManager.teamKey()) }
+        AlertDialog(
+            onDismissRequest = { showSyncSettings = false },
+            title = { Text("Live sync") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        when (syncStatus.state) {
+                            SyncManager.State.ONLINE -> "Connected - ${syncStatus.onlineUsers} phone(s) online now."
+                            SyncManager.State.CONNECTING -> "Connecting..."
+                            SyncManager.State.OFFLINE -> "No connection. Records are kept on this phone and sent automatically when signal returns."
+                            SyncManager.State.AUTH_FAILED -> "The team key is wrong."
+                            SyncManager.State.NOT_CONFIGURED -> "Enter the sync server address and team key (from your admin)."
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (unsynced > 0) Text("$unsynced record(s) waiting to be sent", color = Color(0xFFE65100))
+                    OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Server address") },
+                        placeholder = { Text("https://smart-irrigation-sync.<name>.workers.dev") }, singleLine = true)
+                    OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text("Team key") }, singleLine = true)
+                    Text("Device: ${viewModel.syncManager.deviceId.take(8)}", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.configureSync(url, key); showSyncSettings = false }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.syncManager.requestSync(); showSyncSettings = false }) { Text("Sync now") }
+            }
+        )
+    }
+
     // ---- log sheet ----
     if (showLog) {
         var onlyToday by remember { mutableStateOf(true) }
@@ -589,7 +636,7 @@ fun FieldMapScreen(viewModel: IrrigationViewModel) {
                 } else {
                     val fmt = SimpleDateFormat("dd MMM HH:mm", Locale.US)
                     LazyColumn(Modifier.heightIn(max = 480.dp)) {
-                        items(shown, key = { it.id }) { log ->
+                        items(shown, key = { it.uuid }) { log ->
                             Row(
                                 Modifier.fillMaxWidth().clickable { showLog = false; goTo(log.valveTag) }.padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -601,14 +648,17 @@ fun FieldMapScreen(viewModel: IrrigationViewModel) {
                                 )
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("${log.valveTag}  ${log.action}", fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        "${log.valveTag}  ${log.action}" + if (!log.synced) "   · not sent yet" else "",
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                     Text(
                                         "${fmt.format(Date(log.timestamp))} · ${log.operatorName} · ${log.pumpHouseId} · ${log.newBlock}" +
                                             (if (log.note.isNotBlank()) " · ${log.note}" else ""),
                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                IconButton(onClick = { viewModel.deleteFieldLog(log.id) }) {
+                                IconButton(onClick = { viewModel.deleteFieldLog(log.uuid) }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Delete record")
                                 }
                             }
@@ -618,5 +668,28 @@ fun FieldMapScreen(viewModel: IrrigationViewModel) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SyncChip(status: SyncManager.Status, unsynced: Int, onClick: () -> Unit) {
+    val (dot, text) = when (status.state) {
+        SyncManager.State.ONLINE -> Color(0xFF00C853) to
+            ("Live · ${status.onlineUsers} online" + if (unsynced > 0) " · sending $unsynced" else "")
+        SyncManager.State.CONNECTING -> Color(0xFFFFC107) to "Connecting..." + if (unsynced > 0) " · $unsynced waiting" else ""
+        SyncManager.State.OFFLINE -> Color(0xFFFF9800) to "Offline · " + if (unsynced > 0) "$unsynced waiting to send" else "saved on phone"
+        SyncManager.State.AUTH_FAILED -> Color(0xFFFF1744) to "Sync: wrong team key - tap to fix"
+        SyncManager.State.NOT_CONFIGURED -> Color(0xFF9E9E9E) to "Sync not set up - tap"
+    }
+    Row(
+        Modifier
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(10.dp).background(dot, RoundedCornerShape(5.dp)))
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
