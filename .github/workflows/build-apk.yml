@@ -3,6 +3,7 @@ name: Build APK
 on:
   push:
     branches: [ main ]
+    paths-ignore: [ 'cloud/**', '.github/workflows/deploy-worker.yml' ]
   workflow_dispatch:
 
 jobs:
@@ -27,6 +28,10 @@ jobs:
           gradle-version: '9.3.1'
 
       - name: Build debug APK
+        env:
+          # Baked into the app so field users don't have to type them (set in repo Settings > Secrets > Actions)
+          SYNC_URL: ${{ secrets.SYNC_URL }}
+          SYNC_TEAM_KEY: ${{ secrets.TEAM_KEY }}
         run: gradle :app:assembleDebug --no-configuration-cache --stacktrace -Pkotlin.compiler.execution.strategy=daemon
 
       - name: Upload APK

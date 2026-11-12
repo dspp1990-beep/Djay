@@ -1,0 +1,32 @@
+name: Deploy sync server
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'cloud/**', '.github/workflows/deploy-worker.yml' ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Deploy Cloudflare Worker (smart-irrigation-sync)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloud
+          wranglerVersion: '4.160.1'
+          command: deploy
+          secrets: |
+            TEAM_KEY
+        env:
+          TEAM_KEY: ${{ secrets.TEAM_KEY }}
+
+      - name: Check the server answers
+        run: |
+          echo "Look above for the line 'https://smart-irrigation-sync.<your-subdomain>.workers.dev'"
+          echo "Copy that address into the repository secret SYNC_URL, then run 'Build APK' again."
