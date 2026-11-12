@@ -1,0 +1,52 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Water Drop Silhouette -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,28 C45,40 38,50 38,60 C38,69 45,76 54,76 C63,76 70,69 70,60 C70,50 63,40 54,28 Z" />
+    <!-- Valve wheel overlay inside droplet -->
+    <path
+        android:fillColor="#004D40"
+        android:pathData="M54,49 A10,10 0 1,0 54,69 A10,10 0 1,0 54,49 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,53 A6,6 0 1,0 54,65 A6,6 0 1,0 54,53 Z" />
+    <!-- Cross spokes of the valve -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M53,46 h2 v18 h-2 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,58 h20 v2 h-20 Z" />
+    <!-- Lateral drip spray lines -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#69F0AE"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M30,58 Q24,62 20,68" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#69F0AE"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M78,58 Q84,62 88,68" />
+    <!-- Drip dots -->
+    <path
+        android:fillColor="#69F0AE"
+        android:pathData="M19,72 A2,2 0 1,0 19,76 A2,2 0 1,0 19,72 Z" />
+    <path
+        android:fillColor="#69F0AE"
+        android:pathData="M89,72 A2,2 0 1,0 89,76 A2,2 0 1,0 89,72 Z" />
+    <!-- Horizontal main line underneath -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#B2EBF2"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M34,84 L74,84" />
+</vector>
+

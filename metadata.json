@@ -1,0 +1,6 @@
+{
+  "name": "Smart Irrigation",
+  "description": "Real-time drip irrigation valve tracking, pump house and system monitoring, sensor telemetry, and automated shift scheduling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
