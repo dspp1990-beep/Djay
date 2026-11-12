@@ -1,0 +1,16 @@
+# Smart Irrigation live sync – Cloudflare Worker (free plan compatible)
+name = "smart-irrigation-sync"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "SYNC"
+class_name = "SyncRoom"
+
+# SQLite-backed Durable Object (the storage type available on the Workers Free plan)
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SyncRoom"]
+
+# Secret (not stored here): TEAM_KEY  – set by the GitHub deploy workflow from the repo secret TEAM_KEY
