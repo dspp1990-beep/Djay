@@ -25,7 +25,8 @@ import kotlinx.coroutines.launch
         FieldValveLogEntity::class
     ],
     // v4: real valve coordinates from the Jain drawing + field valve log (destructive re-seed)
-    version = 4,
+    // v5: field valve log keyed by uuid + sync columns (live multi-user sync)
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

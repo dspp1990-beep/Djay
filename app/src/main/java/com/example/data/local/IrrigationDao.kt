@@ -133,13 +133,25 @@ interface IrrigationDao {
     @Query("UPDATE submain_valves SET shiftNumber = :shift WHERE tag = :tag")
     suspend fun setValveShift(tag: String, shift: Int)
 
-    // --- REAL field valve log (separate from demo telemetry logs) ---
-    @Insert
-    suspend fun insertFieldLog(log: FieldValveLogEntity)
+    // --- REAL field valve log (separate from demo telemetry logs), synced via the Cloudflare server ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFieldLog(log: FieldValveLogEntity)
 
-    @Query("SELECT * FROM field_valve_log ORDER BY timestamp DESC")
+    @Query("SELECT * FROM field_valve_log WHERE deleted = 0 ORDER BY timestamp DESC")
     fun getAllFieldLogs(): Flow<List<FieldValveLogEntity>>
 
-    @Query("DELETE FROM field_valve_log WHERE id = :id")
-    suspend fun deleteFieldLog(id: Long)
+    @Query("SELECT * FROM field_valve_log WHERE uuid = :uuid LIMIT 1")
+    suspend fun getFieldLog(uuid: String): FieldValveLogEntity?
+
+    @Query("SELECT * FROM field_valve_log WHERE synced = 0 ORDER BY timestamp ASC")
+    suspend fun getUnsyncedFieldLogs(): List<FieldValveLogEntity>
+
+    @Query("SELECT COUNT(*) FROM field_valve_log WHERE synced = 0")
+    fun countUnsyncedFieldLogs(): Flow<Int>
+
+    @Query("UPDATE field_valve_log SET synced = 1, serverSeq = :seq WHERE uuid = :uuid")
+    suspend fun markFieldLogSynced(uuid: String, seq: Long)
+
+    @Query("UPDATE field_valve_log SET deleted = 1, synced = 0 WHERE uuid = :uuid")
+    suspend fun markFieldLogDeleted(uuid: String)
 }
