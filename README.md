@@ -11,7 +11,18 @@ An Android app (Kotlin + Jetpack Compose). It started as a Google AI Studio expo
 
 **Shift planner:** in the Field tab, the valve sheet has a Shift − / + control. It changes the valve's shift (1–12), and the Valves and Schedule screens use that value.
 
-**Field log storage:** the field log is stored **on each phone** (Room table `field_valve_log`). To combine records, use **Share** (CSV). A shared server, such as Firebase or a Google Sheet endpoint, is the next step if all phones should see the same live status.
+**Live sync (v1.2):** every OPEN/CLOSE, delete and shift change is shared with all phones through a free Cloudflare Worker (`cloud/`).
+- **Offline first.** A record is saved on the phone straight away. It is sent when there is signal: "Offline · N waiting" turns into "Live".
+- **Live.** While online, each phone holds a WebSocket connection, so other users' records appear within about a second. After every reconnect the phone also catches up on anything it missed.
+- **Team key.** One shared key (repo secret `TEAM_KEY`) protects the server. Anyone with the APK and the key can read and write, so keep the APK internal.
+- **Server.** A Cloudflare Worker plus one SQLite Durable Object, which fits the **Workers Free plan** (100k requests/day, 100k row writes/day).
+
+### Set up live sync (once)
+1. Create a free Cloudflare account and open **Workers & Pages** once, so it gives you a `*.workers.dev` subdomain.
+2. Copy your **Account ID**. Then go to **My Profile → API Tokens → Create Token → "Edit Cloudflare Workers"** and create the token.
+3. In GitHub, go to repo **Settings → Secrets and variables → Actions** and add the secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and `TEAM_KEY`.
+4. Run the **Deploy sync server** action. Copy the `https://smart-irrigation-sync.<subdomain>.workers.dev` address from its log into a fourth secret, `SYNC_URL`.
+5. Run **Build APK** again. The address and key are now built into the app. You can also enter them in the app: Field tab → tap the sync chip.
 
 ## Build the APK
 ### Option A – GitHub (no Android Studio needed)

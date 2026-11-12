@@ -1,0 +1,42 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore: [ 'cloud/**', '.github/workflows/deploy-worker.yml' ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Accept Android SDK licenses (SDK is preinstalled on the runner)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Build debug APK
+        env:
+          # Baked into the app so field users don't have to type them (set in repo Settings > Secrets > Actions)
+          SYNC_URL: ${{ secrets.SYNC_URL }}
+          SYNC_TEAM_KEY: ${{ secrets.TEAM_KEY }}
+        run: gradle :app:assembleDebug --no-configuration-cache --stacktrace -Pkotlin.compiler.execution.strategy=daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-irrigation-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
