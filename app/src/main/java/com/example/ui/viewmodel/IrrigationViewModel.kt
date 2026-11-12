@@ -74,8 +74,16 @@ class IrrigationViewModel(application: Application) : AndroidViewModel(applicati
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // ---------- REAL field valve log (not touched by the demo telemetry loop) ----------
+    // Synced live between all phones through the Cloudflare sync server (see util/SyncManager).
+    val syncManager = com.example.util.SyncManager(application, database.irrigationDao(), viewModelScope)
+    val syncStatus: StateFlow<com.example.util.SyncManager.Status> = syncManager.status
+
     val fieldLogs: StateFlow<List<com.example.data.model.FieldValveLogEntity>> = repository.fieldLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Records saved on this phone that have not reached the server yet. */
+    val unsyncedCount: StateFlow<Int> = database.irrigationDao().countUnsyncedFieldLogs()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     fun logFieldValve(
         tag: String,
@@ -91,6 +99,7 @@ class IrrigationViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             repository.insertFieldLog(
                 com.example.data.model.FieldValveLogEntity(
+                    uuid = java.util.UUID.randomUUID().toString(),
                     valveTag = tag,
                     systemNumber = com.example.data.model.KmlGeoData.systemOfTag(tag),
                     pumpHouseId = com.example.data.model.KmlGeoData.pumpHouseOfTag(tag),
@@ -101,22 +110,40 @@ class IrrigationViewModel(application: Application) : AndroidViewModel(applicati
                     areaHa = com.example.data.model.KmlGeoData.valveAreaHa(tag),
                     userLatitude = userLat,
                     userLongitude = userLng,
-                    distanceToValveM = dist
+                    distanceToValveM = dist,
+                    deviceId = syncManager.deviceId,
+                    synced = false
                 )
             )
+            syncManager.requestSync()
         }
     }
 
-    fun deleteFieldLog(id: Long) {
-        viewModelScope.launch { repository.deleteFieldLog(id) }
+    fun deleteFieldLog(uuid: String) {
+        viewModelScope.launch {
+            repository.deleteFieldLog(uuid)
+            syncManager.requestSync()
+        }
     }
 
     fun setValveShift(tag: String, shift: Int) {
-        viewModelScope.launch { repository.setValveShift(tag, shift.coerceIn(1, 12)) }
+        val s = shift.coerceIn(1, 12)
+        viewModelScope.launch {
+            repository.setValveShift(tag, s)
+            syncManager.queueShift(tag, s)
+        }
+    }
+
+    fun configureSync(url: String, key: String) = syncManager.configure(url, key)
+
+    override fun onCleared() {
+        syncManager.stop()
+        super.onCleared()
     }
 
 
     init {
+        syncManager.start()
         // Ensure database is populated on IO thread before starting background telemetry
         viewModelScope.launch(Dispatchers.IO) {
             AppDatabase.populateDatabase(database.irrigationDao())
