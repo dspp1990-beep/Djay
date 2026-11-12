@@ -17,10 +17,15 @@ android {
     applicationId = "com.aistudio.smartirrigation.vqrw"
     minSdk = 24
     targetSdk = 36
-    versionCode = 2
-    versionName = "1.1-field"
+    versionCode = 3
+    versionName = "1.2-live-sync"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // Live sync server (Cloudflare Worker). Filled from environment variables by the GitHub build;
+    // empty in local builds -> can be entered in the app (Field tab > sync chip).
+    buildConfigField("String", "SYNC_URL", "\"${System.getenv("SYNC_URL") ?: ""}\"")
+    buildConfigField("String", "SYNC_TEAM_KEY", "\"${System.getenv("SYNC_TEAM_KEY") ?: ""}\"")
   }
 
   signingConfigs {
@@ -81,6 +86,7 @@ dependencies {
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   implementation(libs.osmdroid.android)  // satellite field map
+  implementation(libs.okhttp)  // live sync (WebSocket + REST)
   // implementation(libs.androidx.camera.camera2)
   // implementation(libs.androidx.camera.core)
   // implementation(libs.androidx.camera.lifecycle)
