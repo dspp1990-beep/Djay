@@ -37,9 +37,10 @@ class IrrigationRepository(private val dao: IrrigationDao) {
 
     val fieldLogs: Flow<List<FieldValveLogEntity>> = dao.getAllFieldLogs()
 
-    suspend fun insertFieldLog(log: FieldValveLogEntity) = dao.insertFieldLog(log)
+    suspend fun insertFieldLog(log: FieldValveLogEntity) = dao.upsertFieldLog(log)
 
-    suspend fun deleteFieldLog(id: Long) = dao.deleteFieldLog(id)
+    /** Soft delete: kept as a tombstone until the server has it, so the delete reaches every phone. */
+    suspend fun deleteFieldLog(uuid: String) = dao.markFieldLogDeleted(uuid)
 
     suspend fun setValveShift(tag: String, shift: Int) = dao.setValveShift(tag, shift)
 
