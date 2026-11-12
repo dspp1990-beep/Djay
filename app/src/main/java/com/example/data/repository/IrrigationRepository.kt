@@ -2,6 +2,7 @@ package com.example.data.repository
 
 import com.example.data.local.IrrigationDao
 import com.example.data.model.IrrigationLogEntity
+import com.example.data.model.FieldValveLogEntity
 import com.example.data.model.IrrigationSystemEntity
 import com.example.data.model.PumpHouseEntity
 import com.example.data.model.ScheduleConfigEntity
@@ -33,6 +34,14 @@ class IrrigationRepository(private val dao: IrrigationDao) {
 
     fun getScheduleConfig(systemId: String): Flow<ScheduleConfigEntity?> =
         dao.getScheduleConfig(systemId)
+
+    val fieldLogs: Flow<List<FieldValveLogEntity>> = dao.getAllFieldLogs()
+
+    suspend fun insertFieldLog(log: FieldValveLogEntity) = dao.insertFieldLog(log)
+
+    suspend fun deleteFieldLog(id: Long) = dao.deleteFieldLog(id)
+
+    suspend fun setValveShift(tag: String, shift: Int) = dao.setValveShift(tag, shift)
 
     suspend fun toggleControlValve(tag: String, open: Boolean) {
         val valve = dao.getValveByTag(tag).firstOrNull() ?: return

@@ -1,5 +1,7 @@
 package com.example
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import com.example.ui.screens.FieldMapScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -73,13 +75,28 @@ import com.example.ui.theme.ValveAlertRed
 import com.example.ui.viewmodel.IrrigationViewModel
 import com.example.ui.theme.*
 
-enum class NavigationScreen(val label: String, val icon: ImageVector, val tag: String) {
-    OVERVIEW("Overview", Icons.Default.GridView, "nav_overview"),
+enum class NavigationScreen(val label: String, val icon: ImageVector, val tag: String, val isDemo: Boolean = false) {
+    FIELD("Field", Icons.Default.MyLocation, "nav_field"),
+    OVERVIEW("Overview", Icons.Default.GridView, "nav_overview", isDemo = true),
     MAP("KML", Icons.Default.Public, "nav_kml_tab"),
-    VALVES("Valves", Icons.Default.WaterDrop, "nav_valves"),
-    PUMP_HOUSES("Stations", Icons.Default.AccountTree, "nav_pump_houses"),
-    SENSORS("Sensors", Icons.Default.Speed, "nav_sensors"),
-    SCHEDULER("Schedule", Icons.Default.Schedule, "nav_scheduler")
+    VALVES("Valves", Icons.Default.WaterDrop, "nav_valves", isDemo = true),
+    PUMP_HOUSES("Stations", Icons.Default.AccountTree, "nav_pump_houses", isDemo = true),
+    SENSORS("Sensors", Icons.Default.Speed, "nav_sensors", isDemo = true),
+    SCHEDULER("Schedule", Icons.Default.Schedule, "nav_scheduler", isDemo = true)
+}
+
+/** Shown on screens whose numbers come from the simulated SeedData / telemetry loop. */
+@Composable
+fun DemoDataBanner() {
+    Text(
+        text = "DEMO DATA - flows, pressures, sensors and pump status are simulated. Valve positions & tags are real (Jain drawing). Use the Field tab for real records.",
+        style = MaterialTheme.typography.labelSmall,
+        color = Color(0xFF3E2723),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFD54F))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    )
 }
 
 class MainActivity : ComponentActivity() {
@@ -97,7 +114,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppContent(viewModel: IrrigationViewModel = viewModel()) {
-    var currentScreen by remember { mutableStateOf(NavigationScreen.OVERVIEW) }
+    var currentScreen by remember { mutableStateOf(NavigationScreen.FIELD) }
     var showEmergencyDialog by remember { mutableStateOf(false) }
 
     val pumpHouses by viewModel.pumpHouses.collectAsState()
@@ -280,7 +297,13 @@ fun MainAppContent(viewModel: IrrigationViewModel = viewModel()) {
                             .padding(innerPadding),
                         label = "screen_crossfade_wide"
                     ) { screen ->
+                        Column(modifier = Modifier.fillMaxSize()) {
+                        if (screen.isDemo) DemoDataBanner()
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         when (screen) {
+                            NavigationScreen.FIELD -> {
+                                FieldMapScreen(viewModel = viewModel)
+                            }
                             NavigationScreen.OVERVIEW -> {
                                 DashboardOverviewScreen(
                                     stats = stats,
@@ -365,6 +388,8 @@ fun MainAppContent(viewModel: IrrigationViewModel = viewModel()) {
                                     onUpdateScheduleConfig = { config -> viewModel.updateScheduleConfig(config) }
                                 )
                             }
+                        }
+                        }
                         }
                     }
                 }
@@ -483,7 +508,13 @@ fun MainAppContent(viewModel: IrrigationViewModel = viewModel()) {
                         .padding(innerPadding),
                     label = "screen_crossfade"
                 ) { screen ->
+                    Column(modifier = Modifier.fillMaxSize()) {
+                    if (screen.isDemo) DemoDataBanner()
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     when (screen) {
+                        NavigationScreen.FIELD -> {
+                            FieldMapScreen(viewModel = viewModel)
+                        }
                         NavigationScreen.OVERVIEW -> {
                             DashboardOverviewScreen(
                                 stats = stats,
@@ -573,6 +604,8 @@ fun MainAppContent(viewModel: IrrigationViewModel = viewModel()) {
                                 onUpdateScheduleConfig = { config -> viewModel.updateScheduleConfig(config) }
                             )
                         }
+                    }
+                    }
                     }
                 }
             }

@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.data.model.IrrigationLogEntity
+import com.example.data.model.FieldValveLogEntity
 import com.example.data.model.IrrigationSystemEntity
 import com.example.data.model.PumpHouseEntity
 import com.example.data.model.ScheduleConfigEntity
@@ -128,4 +129,17 @@ interface IrrigationDao {
 
     @Query("SELECT COUNT(*) FROM submain_valves")
     suspend fun getValvesCount(): Int
+
+    @Query("UPDATE submain_valves SET shiftNumber = :shift WHERE tag = :tag")
+    suspend fun setValveShift(tag: String, shift: Int)
+
+    // --- REAL field valve log (separate from demo telemetry logs) ---
+    @Insert
+    suspend fun insertFieldLog(log: FieldValveLogEntity)
+
+    @Query("SELECT * FROM field_valve_log ORDER BY timestamp DESC")
+    fun getAllFieldLogs(): Flow<List<FieldValveLogEntity>>
+
+    @Query("DELETE FROM field_valve_log WHERE id = :id")
+    suspend fun deleteFieldLog(id: Long)
 }

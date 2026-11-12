@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.IrrigationLogEntity
+import com.example.data.model.FieldValveLogEntity
 import com.example.data.model.IrrigationSystemEntity
 import com.example.data.model.PumpHouseEntity
 import com.example.data.model.ScheduleConfigEntity
@@ -20,9 +21,11 @@ import kotlinx.coroutines.launch
         IrrigationSystemEntity::class,
         SubmainValveEntity::class,
         ScheduleConfigEntity::class,
-        IrrigationLogEntity::class
+        IrrigationLogEntity::class,
+        FieldValveLogEntity::class
     ],
-    version = 3,
+    // v4: real valve coordinates from the Jain drawing + field valve log (destructive re-seed)
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

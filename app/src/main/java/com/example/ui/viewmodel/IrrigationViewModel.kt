@@ -73,6 +73,49 @@ class IrrigationViewModel(application: Application) : AndroidViewModel(applicati
     val scheduleConfigs: StateFlow<List<ScheduleConfigEntity>> = repository.allScheduleConfigs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // ---------- REAL field valve log (not touched by the demo telemetry loop) ----------
+    val fieldLogs: StateFlow<List<com.example.data.model.FieldValveLogEntity>> = repository.fieldLogs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun logFieldValve(
+        tag: String,
+        open: Boolean,
+        operatorName: String,
+        note: String,
+        userLat: Double?,
+        userLng: Double?
+    ) {
+        val valvePos = com.example.data.model.KmlGeoData.SURVEYED_VALVE_COORDINATES[tag]
+        val dist = if (valvePos != null && userLat != null && userLng != null)
+            com.example.data.model.GeoUtils.distanceMeters(userLat, userLng, valvePos.latitude, valvePos.longitude) else null
+        viewModelScope.launch {
+            repository.insertFieldLog(
+                com.example.data.model.FieldValveLogEntity(
+                    valveTag = tag,
+                    systemNumber = com.example.data.model.KmlGeoData.systemOfTag(tag),
+                    pumpHouseId = com.example.data.model.KmlGeoData.pumpHouseOfTag(tag),
+                    newBlock = com.example.data.model.KmlGeoData.VALVE_NEW_BLOCK[tag] ?: "",
+                    action = if (open) "OPEN" else "CLOSE",
+                    operatorName = operatorName.ifBlank { "Unknown" },
+                    note = note,
+                    areaHa = com.example.data.model.KmlGeoData.valveAreaHa(tag),
+                    userLatitude = userLat,
+                    userLongitude = userLng,
+                    distanceToValveM = dist
+                )
+            )
+        }
+    }
+
+    fun deleteFieldLog(id: Long) {
+        viewModelScope.launch { repository.deleteFieldLog(id) }
+    }
+
+    fun setValveShift(tag: String, shift: Int) {
+        viewModelScope.launch { repository.setValveShift(tag, shift.coerceIn(1, 12)) }
+    }
+
+
     init {
         // Ensure database is populated on IO thread before starting background telemetry
         viewModelScope.launch(Dispatchers.IO) {
@@ -147,13 +190,30 @@ class IrrigationViewModel(application: Application) : AndroidViewModel(applicati
                     val doc = com.example.data.model.KmlParser.parseKmlText(kmlText, cacheFile.name)
                     kmlDocument.value = doc
                 } catch (_: Exception) {
-                    kmlDocument.value = com.example.data.model.KmlParser.createSampleKml()
+                    kmlDocument.value = loadBundledLayoutKml()
                 }
             } else {
-                kmlDocument.value = com.example.data.model.KmlParser.createSampleKml()
+                kmlDocument.value = loadBundledLayoutKml()
             }
         }
     }
+
+    /**
+     * Default map layer = merged real layout shipped in assets: CAD "Sardoba Rasido - final"
+     * (PH 12-18) + CAD "Combine PH-7 to 11" + georeferenced Jain design PDF layers
+     * (elevation contours, canal, mains, valves). Falls back to the old demo sample
+     * only if the asset is missing.
+     */
+    private fun loadBundledLayoutKml(): com.example.data.model.KmlDocument {
+        return try {
+            val text = getApplication<Application>().assets
+                .open("sardoba_layout_merged.kml").bufferedReader().use { it.readText() }
+            com.example.data.model.KmlParser.parseKmlText(text, "sardoba_layout_merged.kml")
+        } catch (_: Exception) {
+            com.example.data.model.KmlParser.createSampleKml()
+        }
+    }
+
 
     fun loadKmlFile(inputStream: java.io.InputStream, fileName: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -188,7 +248,7 @@ class IrrigationViewModel(application: Application) : AndroidViewModel(applicati
 
     fun loadSampleKml() {
         viewModelScope.launch(Dispatchers.IO) {
-            val doc = com.example.data.model.KmlParser.createSampleKml()
+            val doc = loadBundledLayoutKml()
             kmlDocument.value = doc
             selectedKmlFeature.value = null
             if (!doc.rawContent.isNullOrBlank()) {
